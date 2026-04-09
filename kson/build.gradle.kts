@@ -26,14 +26,21 @@ android {
             )
         }
     }
+
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 }
 
 dependencies {
-    implementation(libs.appcompat.v7)
+    // Kotlin Standard Library
+    implementation(libs.kotlin.stdlib)
+
+    // Kotlin Reflection (Required for Kson)
+    implementation(libs.kotlin.reflect)
+
+    // Testing
     testImplementation(libs.junit)
     androidTestImplementation(libs.runner)
     androidTestImplementation(libs.espresso.core)

@@ -1,21 +1,54 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# Kson Library ProGuard Rules
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# Keep Kson public API
+-keep public class com.nidoham.kson.** {
+    public protected *;
+}
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# Keep annotations
+-keepattributes *Annotation*
+-keep @interface com.nidoham.kson.annotation.*
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# Keep SerializedName alternate values
+-keepclassmembers class * {
+    @com.nidoham.kson.annotation.SerializedName <fields>;
+}
+
+# Keep classes with @JsonAdapter
+-keep @com.nidoham.kson.annotation.JsonAdapter class * { *; }
+
+# Keep Enum values
+-keepclassmembers enum * {
+    **[] values();
+    public String valueOf(java.lang.String);
+}
+
+# Keep Sealed class subclasses
+-keepclassmembers class * implements com.nidoham.kson.core.JsonElement { *; }
+
+# Keep TypeAdapter implementations
+-keep class * implements com.nidoham.kson.adapter.TypeAdapter { *; }
+-keep class * implements com.nidoham.kson.adapter.TypeAdapterFactory { *; }
+
+# Keep data classes used with Kson
+-keepclassmembers class * {
+    <init>(...);
+}
+
+# Kotlin Reflection
+-keep class kotlin.Metadata { *; }
+-keepclassmembers class **$WhenMappings {
+    <fields>;
+}
+-keepclassmembers class kotlin.Metadata {
+    public <methods>;
+}
+
+# Keep default constructors for serialization
+-keepclassmembers class * {
+    public <init>(...);
+}
+
+# Suppress warnings
+-dontwarn kotlin.reflect.jvm.internal.**
+-dontwarn kotlinx.coroutines.**
