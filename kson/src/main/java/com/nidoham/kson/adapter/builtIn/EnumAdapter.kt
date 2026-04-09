@@ -15,24 +15,28 @@ class EnumAdapter<T : Enum<T>>(
     private val enumConstants: Array<T> by lazy { enumClass.java.enumConstants as Array<T> }
     private val nameMap: Map<String, T> by lazy { enumConstants.associateBy { if (caseSensitive) it.name else it.name.lowercase() } }
 
-    override fun serialize(value: T): JsonElement = JsonPrimitive(value.name)
+    override fun serialize(value: T): JsonElement {
+        return JsonPrimitive.of(value.name)
+    }
 
     override fun deserialize(element: JsonElement): T? {
         if (element.isJsonNull) return nullValue()
-        val name = if (element.isJsonPrimitive) element.asString else return null
+        val name = if (element.isJsonPrimitive) element.asString() else return null
         val lookupName = if (caseSensitive) name else name.lowercase()
         nameMap[lookupName]?.let { return it }
         name.toIntOrNull()?.let { if (it in enumConstants.indices) return enumConstants[it] }
 
         return when (unknownValuePolicy) {
             UnknownValuePolicy.THROW_EXCEPTION -> throw IllegalArgumentException("Unknown enum value '$name' for ${enumClass.simpleName}. Valid: ${enumConstants.joinToString { it.name }}")
-            UnknownValuePolicy.USE_NULL -> { logger.warn("Unknown enum value '$name' for ${enumClass.simpleName}, returning null"); null }
-            UnknownValuePolicy.USE_FIRST -> { logger.warn("Unknown enum value '$name' for ${enumClass.simpleName}, using first"); enumConstants.firstOrNull() }
-            UnknownValuePolicy.USE_DEFAULT -> { logger.warn("Unknown enum value '$name' for ${enumClass.simpleName}, using default"); enumConstants.firstOrNull() }
+            UnknownValuePolicy.USE_NULL -> { logger.warn("Unknown enum value '$name', returning null"); null }
+            UnknownValuePolicy.USE_FIRST -> { logger.warn("Unknown enum value '$name', using first"); enumConstants.firstOrNull() }
+            UnknownValuePolicy.USE_DEFAULT -> { logger.warn("Unknown enum value '$name', using default"); enumConstants.firstOrNull() }
         }
     }
 
-    override fun nullValue(): T? = enumConstants.firstOrNull()
+    override fun nullValue(): T? {
+        return enumConstants.firstOrNull()
+    }
 
     enum class UnknownValuePolicy { THROW_EXCEPTION, USE_NULL, USE_FIRST, USE_DEFAULT }
 }

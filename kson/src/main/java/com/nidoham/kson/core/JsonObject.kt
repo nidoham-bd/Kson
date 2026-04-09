@@ -2,14 +2,9 @@ package com.nidoham.kson.core
 
 import com.nidoham.kson.logging.KsonLogger
 
-/**
- * Represents a JSON object as a map of string keys to JsonElement values.
- * Maintains insertion order for consistency.
- */
 class JsonObject : JsonElement(), Iterable<Map.Entry<String, JsonElement>> {
 
     private val members: LinkedHashMap<String, JsonElement> = LinkedHashMap()
-
     private val logger = KsonLogger.getLogger(JsonObject::class)
 
     fun add(property: String, value: JsonElement?): JsonObject {
@@ -19,22 +14,22 @@ class JsonObject : JsonElement(), Iterable<Map.Entry<String, JsonElement>> {
     }
 
     fun addProperty(property: String, value: String?): JsonObject {
-        members[property] = if (value != null) JsonPrimitive(value) else JsonNull.INSTANCE
+        members[property] = if (value != null) JsonPrimitive.of(value) else JsonNull.INSTANCE
         return this
     }
 
     fun addProperty(property: String, value: Number?): JsonObject {
-        members[property] = if (value != null) JsonPrimitive(value) else JsonNull.INSTANCE
+        members[property] = if (value != null) JsonPrimitive.of(value) else JsonNull.INSTANCE
         return this
     }
 
     fun addProperty(property: String, value: Boolean?): JsonObject {
-        members[property] = if (value != null) JsonPrimitive(value) else JsonNull.INSTANCE
+        members[property] = if (value != null) JsonPrimitive.of(value) else JsonNull.INSTANCE
         return this
     }
 
     fun addProperty(property: String, value: Char?): JsonObject {
-        members[property] = if (value != null) JsonPrimitive(value.toString()) else JsonNull.INSTANCE
+        members[property] = if (value != null) JsonPrimitive.of(value.toString()) else JsonNull.INSTANCE
         return this
     }
 
@@ -44,58 +39,101 @@ class JsonObject : JsonElement(), Iterable<Map.Entry<String, JsonElement>> {
     }
 
     @Suppress("UNCHECKED_CAST")
-    fun <T : JsonElement> removeAs(property: String): T? = remove(property) as? T
+    fun <T : JsonElement> removeAs(property: String): T? {
+        return remove(property) as? T
+    }
 
-    fun keySet(): Set<String> = members.keys
+    fun keySet(): Set<String> {
+        return members.keys
+    }
 
-    fun size(): Int = members.size
+    fun size(): Int {
+        return members.size
+    }
 
-    fun isEmpty(): Boolean = members.isEmpty()
+    fun isEmpty(): Boolean {
+        return members.isEmpty()
+    }
 
-    fun isNotEmpty(): Boolean = members.isNotEmpty()
+    fun isNotEmpty(): Boolean {
+        return members.isNotEmpty()
+    }
 
-    fun has(property: String): Boolean = members.containsKey(property)
+    fun has(property: String): Boolean {
+        return members.containsKey(property)
+    }
 
-    fun get(property: String): JsonElement? = members[property]
+    fun get(property: String): JsonElement? {
+        return members[property]
+    }
 
-    fun getOrDefault(property: String, default: JsonElement): JsonElement =
-        members.getOrDefault(property, default)
+    fun getOrDefault(property: String, default: JsonElement): JsonElement {
+        return members.getOrDefault(property, default)
+    }
 
-    fun entrySet(): Set<Map.Entry<String, JsonElement>> = members.entries
+    fun entrySet(): Set<Map.Entry<String, JsonElement>> {
+        return members.entries
+    }
 
-    fun getAsJsonObject(property: String): JsonObject =
-        get(property)?.asJsonObject() ?: throw IllegalStateException("Property '$property' not found")
+    fun getAsJsonObject(property: String): JsonObject {
+        return get(property)?.asJsonObject() ?: throw IllegalStateException("Property '$property' not found")
+    }
 
-    fun getAsJsonArray(property: String): JsonArray =
-        get(property)?.asJsonArray() ?: throw IllegalStateException("Property '$property' not found")
+    fun getAsJsonArray(property: String): JsonArray {
+        return get(property)?.asJsonArray() ?: throw IllegalStateException("Property '$property' not found")
+    }
 
-    fun getAsJsonPrimitive(property: String): JsonPrimitive =
-        get(property)?.asJsonPrimitive() ?: throw IllegalStateException("Property '$property' not found")
+    fun getAsJsonPrimitive(property: String): JsonPrimitive {
+        return get(property)?.asJsonPrimitive() ?: throw IllegalStateException("Property '$property' not found")
+    }
 
-    fun getAsString(property: String): String? = get(property)?.asString
-    fun getAsInt(property: String): Int? = get(property)?.asInt
-    fun getAsLong(property: String): Long? = get(property)?.asLong
-    fun getAsDouble(property: String): Double? = get(property)?.asDouble
-    fun getAsFloat(property: String): Float? = get(property)?.asFloat
-    fun getAsBoolean(property: String): Boolean? = get(property)?.asBoolean
+    fun getAsString(property: String): String? {
+        return get(property)?.asString()
+    }
 
-    fun getStringOrDefault(property: String, default: String): String =
-        get(property)?.takeIf { !it.isJsonNull }?.asString ?: default
+    fun getAsInt(property: String): Int? {
+        return get(property)?.asInt()
+    }
 
-    fun getIntOrDefault(property: String, default: Int): Int =
-        get(property)?.takeIf { !it.isJsonNull }?.asInt ?: default
+    fun getAsLong(property: String): Long? {
+        return get(property)?.asLong()
+    }
 
-    fun getLongOrDefault(property: String, default: Long): Long =
-        get(property)?.takeIf { !it.isJsonNull }?.asLong ?: default
+    fun getAsDouble(property: String): Double? {
+        return get(property)?.asDouble()
+    }
 
-    fun getDoubleOrDefault(property: String, default: Double): Double =
-        get(property)?.takeIf { !it.isJsonNull }?.asDouble ?: default
+    fun getAsFloat(property: String): Float? {
+        return get(property)?.asFloat()
+    }
 
-    fun getBooleanOrDefault(property: String, default: Boolean): Boolean =
-        get(property)?.takeIf { !it.isJsonNull }?.asBoolean ?: default
+    fun getAsBoolean(property: String): Boolean? {
+        return get(property)?.asBoolean()
+    }
 
-    fun getFloatOrDefault(property: String, default: Float): Float =
-        get(property)?.takeIf { !it.isJsonNull }?.asFloat ?: default
+    fun getStringOrDefault(property: String, default: String): String {
+        return get(property)?.takeIf { !it.isJsonNull }?.asString() ?: default
+    }
+
+    fun getIntOrDefault(property: String, default: Int): Int {
+        return get(property)?.takeIf { !it.isJsonNull }?.asInt() ?: default
+    }
+
+    fun getLongOrDefault(property: String, default: Long): Long {
+        return get(property)?.takeIf { !it.isJsonNull }?.asLong() ?: default
+    }
+
+    fun getDoubleOrDefault(property: String, default: Double): Double {
+        return get(property)?.takeIf { !it.isJsonNull }?.asDouble() ?: default
+    }
+
+    fun getBooleanOrDefault(property: String, default: Boolean): Boolean {
+        return get(property)?.takeIf { !it.isJsonNull }?.asBoolean() ?: default
+    }
+
+    fun getFloatOrDefault(property: String, default: Float): Float {
+        return get(property)?.takeIf { !it.isJsonNull }?.asFloat() ?: default
+    }
 
     fun hasNonNull(property: String): Boolean {
         val element = members[property] ?: return false
@@ -109,20 +147,30 @@ class JsonObject : JsonElement(), Iterable<Map.Entry<String, JsonElement>> {
 
     fun subset(vararg properties: String): JsonObject {
         val result = JsonObject()
-        properties.forEach { prop -> members[prop]?.let { result.add(prop, it) } }
+        properties.forEach { prop ->
+            members[prop]?.let { result.add(prop, it) }
+        }
         return result
     }
 
     fun exclude(vararg properties: String): JsonObject {
         val excludeSet = properties.toSet()
         val result = JsonObject()
-        members.forEach { (key, value) -> if (key !in excludeSet) result.add(key, value) }
+        members.forEach { (key, value) ->
+            if (key !in excludeSet) {
+                result.add(key, value)
+            }
+        }
         return result
     }
 
-    fun containsKey(key: String): Boolean = members.containsKey(key)
+    fun containsKey(key: String): Boolean {
+        return members.containsKey(key)
+    }
 
-    fun containsValue(value: JsonElement): Boolean = members.containsValue(value)
+    fun containsValue(value: JsonElement): Boolean {
+        return members.containsValue(value)
+    }
 
     fun forEach(action: (String, JsonElement) -> Unit) {
         members.forEach { (k, v) -> action(k, v) }
@@ -134,19 +182,9 @@ class JsonObject : JsonElement(), Iterable<Map.Entry<String, JsonElement>> {
         return result
     }
 
-    fun mapKeys(transform: (String) -> String): JsonObject {
-        val result = JsonObject()
-        members.forEach { (k, v) -> result.add(transform(k), v) }
-        return result
+    override fun iterator(): Iterator<Map.Entry<String, JsonElement>> {
+        return members.iterator()
     }
-
-    fun mapValues(transform: (JsonElement) -> JsonElement): JsonObject {
-        val result = JsonObject()
-        members.forEach { (k, v) -> result.add(k, transform(v)) }
-        return result
-    }
-
-    override fun iterator(): Iterator<Map.Entry<String, JsonElement>> = members.iterator()
 
     override fun deepCopy(): JsonObject {
         val result = JsonObject()
@@ -154,36 +192,40 @@ class JsonObject : JsonElement(), Iterable<Map.Entry<String, JsonElement>> {
         return result
     }
 
-    override fun toJsonString(): String = buildString {
-        append('{')
-        var first = true
-        for ((key, value) in members) {
-            if (!first) append(',')
-            append('"')
-            append(escapeString(key))
-            append('"')
-            append(':')
-            append(value.toJsonString())
-            first = false
+    override fun toJsonString(): String {
+        return buildString {
+            append('{')
+            var first = true
+            for ((key, value) in members) {
+                if (!first) append(',')
+                append('"')
+                append(escapeString(key))
+                append('"')
+                append(':')
+                append(value.toJsonString())
+                first = false
+            }
+            append('}')
         }
-        append('}')
     }
 
-    override fun toPrettyJsonString(indent: Int): String = buildString {
-        append("{\n")
-        var first = true
-        val innerIndent = " ".repeat(indent)
-        for ((key, value) in members) {
-            if (!first) append(",\n")
-            append(innerIndent)
-            append('"')
-            append(escapeString(key))
-            append('"')
-            append(": ")
-            append(value.toPrettyJsonString(indent))
-            first = false
+    override fun toPrettyJsonString(indent: Int): String {
+        return buildString {
+            append("{\n")
+            var first = true
+            val innerIndent = " ".repeat(indent)
+            for ((key, value) in members) {
+                if (!first) append(",\n")
+                append(innerIndent)
+                append('"')
+                append(escapeString(key))
+                append('"')
+                append(": ")
+                append(value.toPrettyJsonString(indent))
+                first = false
+            }
+            append("\n}")
         }
-        append("\n}")
     }
 
     override fun equals(other: Any?): Boolean {
@@ -192,19 +234,29 @@ class JsonObject : JsonElement(), Iterable<Map.Entry<String, JsonElement>> {
         return members == other.members
     }
 
-    override fun hashCode(): Int = members.hashCode()
+    override fun hashCode(): Int {
+        return members.hashCode()
+    }
 
-    internal fun escapeString(s: String): String = buildString {
-        for (c in s) {
-            when (c) {
-                '"' -> append("\\\"")
-                '\\' -> append("\\\\")
-                '\b' -> append("\\b")
-                '\n' -> append("\\n")
-                '\r' -> append("\\r")
-                '\t' -> append("\\t")
-                '\u000C' -> append("\\f")
-                else -> if (c.code < 32) append("\\u${c.code.toString(16).padStart(4, '0')}") else append(c)
+    internal fun escapeString(s: String): String {
+        return buildString {
+            for (c in s) {
+                when (c) {
+                    '"' -> append("\\\"")
+                    '\\' -> append("\\\\")
+                    '\b' -> append("\\b")
+                    '\n' -> append("\\n")
+                    '\r' -> append("\\r")
+                    '\t' -> append("\\t")
+                    '\u000C' -> append("\\f")
+                    else -> {
+                        if (c.code < 32) {
+                            append("\\u${c.code.toString(16).padStart(4, '0')}")
+                        } else {
+                            append(c)
+                        }
+                    }
+                }
             }
         }
     }

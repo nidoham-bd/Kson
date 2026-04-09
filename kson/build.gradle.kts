@@ -34,10 +34,7 @@ android {
 }
 
 dependencies {
-    // Kotlin Standard Library
     implementation(libs.kotlin.stdlib)
-
-    // Kotlin Reflection (Required for Kson)
     implementation(libs.kotlin.reflect)
 
     // Testing

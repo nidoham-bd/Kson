@@ -1,14 +1,17 @@
 package com.nidoham.kson.naming
 
 object FieldNamingPolicies {
-
     val IDENTITY: FieldNamingStrategy = FieldNamingStrategy { it }
 
     val LOWER_CASE_WITH_UNDERSCORES: FieldNamingStrategy = FieldNamingStrategy { fieldName ->
         buildString {
             for ((index, c) in fieldName.withIndex()) {
-                if (c.isUpperCase()) { if (index > 0) append('_'); append(c.lowercaseChar()) }
-                else append(c)
+                if (c.isUpperCase()) {
+                    if (index > 0) append('_')
+                    append(c.lowercaseChar())
+                } else {
+                    append(c)
+                }
             }
         }
     }
@@ -39,7 +42,10 @@ object FieldNamingPolicies {
             for (c in fieldName) {
                 when {
                     c == '_' || c == '-' || c == ' ' -> capitalizeNext = true
-                    capitalizeNext -> { append(c.uppercaseChar()); capitalizeNext = false }
+                    capitalizeNext -> {
+                        append(c.uppercaseChar())
+                        capitalizeNext = false
+                    }
                     else -> append(c.lowercaseChar())
                 }
             }

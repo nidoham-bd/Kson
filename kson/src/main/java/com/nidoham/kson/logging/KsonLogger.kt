@@ -10,27 +10,57 @@ interface KsonLogger {
     fun error(message: String, throwable: Throwable)
 
     companion object {
-        private var loggerFactory: (KClass<*>) -> KsonLogger = { DefaultKsonLogger(it.simpleName ?: "Kson") }
+        private var loggerFactory: (String) -> KsonLogger = { DefaultKsonLogger(it) }
 
-        fun setLoggerFactory(factory: (KClass<*>) -> KsonLogger) { loggerFactory = factory }
-        fun getLogger(kClass: KClass<*>): KsonLogger = loggerFactory(kClass)
-        fun getLogger(name: String): KsonLogger = loggerFactory(object : KClass<Nothing> {
-            override val simpleName: String? = name; override val qualifiedName: String? = name
-        })
-        fun disableLogging() { loggerFactory = { NoOpLogger } }
-        fun enableDebugLogging() { loggerFactory = { DefaultKsonLogger(it.simpleName ?: "Kson", true) } }
+        fun setLoggerFactory(factory: (String) -> KsonLogger) {
+            loggerFactory = factory
+        }
+
+        fun getLogger(kClass: KClass<*>): KsonLogger {
+            return loggerFactory(kClass.simpleName ?: "Kson")
+        }
+
+        fun getLogger(name: String): KsonLogger {
+            return loggerFactory(name)
+        }
+
+        fun disableLogging() {
+            loggerFactory = { NoOpLogger }
+        }
+
+        fun enableDebugLogging() {
+            loggerFactory = { DefaultKsonLogger(it, true) }
+        }
     }
 }
 
 class DefaultKsonLogger(private val tag: String, private val debugEnabled: Boolean = false) : KsonLogger {
     private var enabled = true
-    fun setEnabled(enabled: Boolean) { this.enabled = enabled }
 
-    override fun debug(message: String) { if (enabled && debugEnabled) println("[Kson DEBUG] $tag: $message") }
-    override fun info(message: String) { if (enabled) println("[Kson INFO] $tag: $message") }
-    override fun warn(message: String) { if (enabled) println("[Kson WARN] $tag: $message") }
-    override fun error(message: String) { println("[Kson ERROR] $tag: $message") }
-    override fun error(message: String, throwable: Throwable) { println("[Kson ERROR] $tag: $message - ${throwable.message}"); throwable.printStackTrace() }
+    fun setEnabled(enabled: Boolean) {
+        this.enabled = enabled
+    }
+
+    override fun debug(message: String) {
+        if (enabled && debugEnabled) println("[Kson DEBUG] $tag: $message")
+    }
+
+    override fun info(message: String) {
+        if (enabled) println("[Kson INFO] $tag: $message")
+    }
+
+    override fun warn(message: String) {
+        if (enabled) println("[Kson WARN] $tag: $message")
+    }
+
+    override fun error(message: String) {
+        println("[Kson ERROR] $tag: $message")
+    }
+
+    override fun error(message: String, throwable: Throwable) {
+        println("[Kson ERROR] $tag: $message - ${throwable.message}")
+        throwable.printStackTrace()
+    }
 }
 
 object NoOpLogger : KsonLogger {

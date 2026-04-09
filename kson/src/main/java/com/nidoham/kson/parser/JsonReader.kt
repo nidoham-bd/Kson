@@ -1,9 +1,13 @@
 package com.nidoham.kson.parser
 
-import com.nidoham.kson.core.*
+import com.nidoham.kson.core.JsonArray
+import com.nidoham.kson.core.JsonNull
+import com.nidoham.kson.core.JsonObject
+import com.nidoham.kson.core.JsonPrimitive
 import com.nidoham.kson.logging.KsonLogger
 
 class JsonReader(private val input: String) {
+
     private var position = 0
     private var line = 1
     private var column = 1
@@ -11,17 +15,13 @@ class JsonReader(private val input: String) {
     private val stack = mutableListOf<Token>()
     private val pathNames = mutableListOf<String?>()
     private val pathIndices = mutableListOf<Int>()
+    private var duplicateKeys = mutableSetOf<String>()
 
     var lenient = false
     var duplicateKeyPolicy = DuplicateKeyPolicy.FAIL
-    private var duplicateKeys = mutableSetOf<String>()
-
-    enum class DuplicateKeyPolicy { FAIL, REPLACE, IGNORE }
-
     private val length: Int get() = input.length
     private val hasMore: Boolean get() = position < length
     private val peekChar: Char get() = if (position < length) input[position] else '\u0000'
-
     private val logger = KsonLogger.getLogger(JsonReader::class)
 
     private val peekedString = StringBuilder()
@@ -29,19 +29,31 @@ class JsonReader(private val input: String) {
     private var peekedNumber: Number? = null
     private var peekedBoolean: Boolean? = null
 
-    fun getPath(): String = buildString {
-        append("$")
-        for (i in stack.indices) {
-            val name = pathNames.getOrNull(i)
-            if (name != null) { append("."); append(name) }
-            else { append("["); append(pathIndices.getOrNull(i) ?: 0); append("]") }
+    enum class DuplicateKeyPolicy { FAIL, REPLACE, IGNORE }
+
+    fun getPath(): String {
+        return buildString {
+            append("$")
+            for (i in stack.indices) {
+                val name = pathNames.getOrNull(i)
+                if (name != null) {
+                    append(".")
+                    append(name)
+                } else {
+                    append("[")
+                    append(pathIndices.getOrNull(i) ?: 0)
+                    append("]")
+                }
+            }
         }
     }
 
     fun peek(): Token {
         peekedToken?.let { return it }
         skipWhitespace()
-        if (!hasMore) return Token.END_DOCUMENT
+        if (!hasMore) {
+            return Token.END_DOCUMENT
+        }
 
         peekedToken = when (val c = peekChar) {
             '{' -> Token.BEGIN_OBJECT
@@ -50,19 +62,38 @@ class JsonReader(private val input: String) {
             ']' -> Token.END_ARRAY
             ':' -> Token.COLON
             ',' -> Token.COMMA
-            '"', '\'' -> { readStringInternal(); Token.STRING }
-            't', 'f' -> { readBooleanInternal(); Token.BOOLEAN }
-            'n' -> { readNullInternal(); Token.NULL }
+            '"', '\'' -> {
+                readStringInternal()
+                Token.STRING
+            }
+            't', 'f' -> {
+                readBooleanInternal()
+                Token.BOOLEAN
+            }
+            'n' -> {
+                readNullInternal()
+                Token.NULL
+            }
             else -> {
-                if (c == '-' || c in '0'..'9') { readNumberInternal(); Token.NUMBER }
-                else if (lenient) { readUnquotedStringInternal(); Token.STRING }
-                else throw syntaxError("Unexpected character: '$c'")
+                if (c == '-' || c in '0'..'9') {
+                    readNumberInternal()
+                    Token.NUMBER
+                } else if (lenient) {
+                    readUnquotedStringInternal()
+                    Token.STRING
+                } else {
+                    throw syntaxError("Unexpected character: '$c'")
+                }
             }
         }
         return peekedToken!!
     }
 
-    fun nextToken(): Token { val token = peek(); peekedToken = null; return token }
+    fun nextToken(): Token {
+        val token = peek()
+        peekedToken = null
+        return token
+    }
 
     fun beginObject() {
         expect(Token.BEGIN_OBJECT)
@@ -108,7 +139,9 @@ class JsonReader(private val input: String) {
         peekedString.clear()
         peekedToken = null
 
-        if (pathNames.isNotEmpty()) pathNames[pathNames.lastIndex] = name
+        if (pathNames.isNotEmpty()) {
+            pathNames[pathNames.lastIndex] = name
+        }
 
         if (duplicateKeyPolicy == DuplicateKeyPolicy.FAIL && !duplicateKeys.add(name)) {
             throw DuplicateKeyException(name, line, column)
@@ -118,38 +151,87 @@ class JsonReader(private val input: String) {
         return name
     }
 
-    fun nextString(): String { expect(Token.STRING); val v = peekedString.toString(); peekedString.clear(); peekedToken = null; return v }
-    fun nextBoolean(): Boolean { expect(Token.BOOLEAN); val v = peekedBoolean!!; peekedBoolean = null; peekedToken = null; return v }
-    fun nextNull() { expect(Token.NULL); peekedToken = null }
-    fun nextNumber(): Number { expect(Token.NUMBER); val v = peekedNumber!!; peekedNumber = null; peekedToken = null; return v }
+    fun nextString(): String {
+        expect(Token.STRING)
+        val v = peekedString.toString()
+        peekedString.clear()
+        peekedToken = null
+        return v
+    }
 
-    fun nextElement(): JsonElement = when (peek()) {
-        Token.BEGIN_OBJECT -> {
-            beginObject()
-            val obj = JsonObject()
-            while (hasNext()) { val name = nextName(); obj.add(name, nextElement()) }
-            endObject()
-            obj
+    fun nextBoolean(): Boolean {
+        expect(Token.BOOLEAN)
+        val v = peekedBoolean!!
+        peekedBoolean = null
+        peekedToken = null
+        return v
+    }
+
+    fun nextNull() {
+        expect(Token.NULL)
+        peekedToken = null
+    }
+
+    fun nextNumber(): Number {
+        expect(Token.NUMBER)
+        val v = peekedNumber!!
+        peekedNumber = null
+        peekedToken = null
+        return v
+    }
+
+    fun nextElement(): com.nidoham.kson.core.JsonElement {
+        return when (peek()) {
+            Token.BEGIN_OBJECT -> {
+                beginObject()
+                val obj = JsonObject()
+                while (hasNext()) {
+                    val name = nextName()
+                    obj.add(name, nextElement())
+                }
+                endObject()
+                obj
+            }
+            Token.BEGIN_ARRAY -> {
+                beginArray()
+                val arr = JsonArray()
+                while (hasNext()) {
+                    arr.add(nextElement())
+                    incrementPathIndex()
+                }
+                endArray()
+                arr
+            }
+            Token.STRING -> JsonPrimitive.of(nextString())
+            Token.NUMBER -> JsonPrimitive.of(nextNumber())
+            Token.BOOLEAN -> JsonPrimitive.of(nextBoolean())
+            Token.NULL -> {
+                nextNull()
+                JsonNull.INSTANCE
+            }
+            Token.END_DOCUMENT -> throw syntaxError("Unexpected end of document")
+            else -> throw syntaxError("Unexpected token: ${peek()}")
         }
-        Token.BEGIN_ARRAY -> {
-            beginArray()
-            val arr = JsonArray()
-            while (hasNext()) { arr.add(nextElement()); incrementPathIndex() }
-            endArray()
-            arr
-        }
-        Token.STRING -> JsonPrimitive(nextString())
-        Token.NUMBER -> JsonPrimitive(nextNumber())
-        Token.BOOLEAN -> JsonPrimitive(nextBoolean())
-        Token.NULL -> { nextNull(); JsonNull.INSTANCE }
-        Token.END_DOCUMENT -> throw syntaxError("Unexpected end of document")
-        else -> throw syntaxError("Unexpected token: ${peek()}")
     }
 
     fun skipValue() {
         when (peek()) {
-            Token.BEGIN_OBJECT -> { beginObject(); while (hasNext()) { nextName(); skipValue() }; endObject() }
-            Token.BEGIN_ARRAY -> { beginArray(); while (hasNext()) { skipValue(); incrementPathIndex() }; endArray() }
+            Token.BEGIN_OBJECT -> {
+                beginObject()
+                while (hasNext()) {
+                    nextName()
+                    skipValue()
+                }
+                endObject()
+            }
+            Token.BEGIN_ARRAY -> {
+                beginArray()
+                while (hasNext()) {
+                    skipValue()
+                    incrementPathIndex()
+                }
+                endArray()
+            }
             Token.STRING, Token.NUMBER, Token.BOOLEAN, Token.NULL -> nextToken()
             Token.END_DOCUMENT -> throw syntaxError("Unexpected end of document")
             else -> nextToken()
@@ -158,36 +240,60 @@ class JsonReader(private val input: String) {
 
     fun close() {
         skipWhitespace()
-        if (hasMore && !lenient) throw syntaxError("Unexpected characters at end of document")
+        if (hasMore && !lenient) {
+            throw syntaxError("Unexpected characters at end of document")
+        }
         logger.debug("Reader closed successfully")
     }
 
     private fun expect(expected: Token) {
         val actual = peek()
-        if (actual != expected) throw UnexpectedTokenException(expected.name, actual.name, line, column)
+        if (actual != expected) {
+            throw UnexpectedTokenException(expected.name, actual.name, line, column)
+        }
         peekedToken = null
     }
 
     private fun skipWhitespace() {
         while (hasMore) {
             val c = peekChar
-            if (c == ' ' || c == '\t' || c == '\r' || c == '\n') { advance() }
-            else if (lenient && c == '/' && position + 1 < length) {
+            if (c == ' ' || c == '\t' || c == '\r' || c == '\n') {
+                advance()
+            } else if (lenient && c == '/' && position + 1 < length) {
                 when (input[position + 1]) {
-                    '/' -> { skipLineComment(); continue }
-                    '*' -> { skipBlockComment(); continue }
+                    '/' -> {
+                        skipLineComment()
+                        continue
+                    }
+                    '*' -> {
+                        skipBlockComment()
+                        continue
+                    }
                     else -> break
                 }
-            } else break
+            } else {
+                break
+            }
         }
     }
 
-    private fun skipLineComment() { advance(); advance(); while (hasMore && peekChar != '\n') advance() }
+    private fun skipLineComment() {
+        advance()
+        advance()
+        while (hasMore && peekChar != '\n') {
+            advance()
+        }
+    }
 
     private fun skipBlockComment() {
-        advance(); advance()
+        advance()
+        advance()
         while (hasMore) {
-            if (peekChar == '*' && position + 1 < length && input[position + 1] == '/') { advance(); advance(); return }
+            if (peekChar == '*' && position + 1 < length && input[position + 1] == '/') {
+                advance()
+                advance()
+                return
+            }
             advance()
         }
         throw syntaxError("Unterminated block comment")
@@ -195,7 +301,12 @@ class JsonReader(private val input: String) {
 
     private fun advance() {
         if (position < length) {
-            if (input[position] == '\n') { line++; column = 1 } else column++
+            if (input[position] == '\n') {
+                line++
+                column = 1
+            } else {
+                column++
+            }
             previousChar = input[position]
             position++
         }
@@ -206,12 +317,14 @@ class JsonReader(private val input: String) {
         val quote = peekChar
         advance()
         while (hasMore) {
-            val c = peekChar; advance()
+            val c = peekChar
+            advance()
             when (c) {
                 quote -> return
                 '\\' -> {
                     if (!hasMore) throw syntaxError("Unterminated string escape")
-                    val escape = peekChar; advance()
+                    val escape = peekChar
+                    advance()
                     when (escape) {
                         '"' -> peekedString.append('"')
                         '\\' -> peekedString.append('\\')
@@ -222,12 +335,19 @@ class JsonReader(private val input: String) {
                         'r' -> peekedString.append('\r')
                         't' -> peekedString.append('\t')
                         'u' -> peekedString.append(readHexDigits(4).toInt(16).toChar())
-                        else -> if (lenient) { peekedString.append('\\'); peekedString.append(escape) }
-                        else throw syntaxError("Invalid escape sequence: \\$escape")
+                        else -> if (lenient) {
+                            peekedString.append('\\')
+                            peekedString.append(escape)
+                        } else {
+                            throw syntaxError("Invalid escape sequence: \\$escape")
+                        }
                     }
                 }
                 '\n', '\r' -> if (!lenient) throw syntaxError("Unterminated string") else peekedString.append(c)
-                else -> { if (c.code < 32 && !lenient) throw syntaxError("Unescaped control character"); peekedString.append(c) }
+                else -> {
+                    if (c.code < 32 && !lenient) throw syntaxError("Unescaped control character")
+                    peekedString.append(c)
+                }
             }
         }
         throw syntaxError("Unterminated string")
@@ -239,67 +359,126 @@ class JsonReader(private val input: String) {
             if (!hasMore) throw syntaxError("Unterminated hex escape")
             val c = peekChar
             if (c !in '0'..'9' && c !in 'a'..'f' && c !in 'A'..'F') throw syntaxError("Invalid hex digit: $c")
-            sb.append(c); advance()
+            sb.append(c)
+            advance()
         }
         return sb.toString()
     }
 
     private fun readNumberInternal() {
         val sb = StringBuilder()
-        if (peekChar == '-') { sb.append(peekChar); advance() }
-        if (peekChar == '0') { sb.append(peekChar); advance(); if (peekChar in '0'..'9' && !lenient) throw syntaxError("Leading zeros not allowed") }
-        else if (peekChar in '1'..'9') { while (peekChar in '0'..'9') { sb.append(peekChar); advance() } }
-        else if (!lenient) throw syntaxError("Expected digit")
+        if (peekChar == '-') {
+            sb.append(peekChar)
+            advance()
+        }
+        if (peekChar == '0') {
+            sb.append(peekChar)
+            advance()
+            if (peekChar in '0'..'9' && !lenient) throw syntaxError("Leading zeros not allowed")
+        } else if (peekChar in '1'..'9') {
+            while (peekChar in '0'..'9') {
+                sb.append(peekChar)
+                advance()
+            }
+        } else if (!lenient) {
+            throw syntaxError("Expected digit")
+        }
 
         if (peekChar == '.') {
-            sb.append(peekChar); advance()
+            sb.append(peekChar)
+            advance()
             if (peekChar !in '0'..'9' && !lenient) throw syntaxError("Expected digit after decimal point")
-            while (peekChar in '0'..'9') { sb.append(peekChar); advance() }
+            while (peekChar in '0'..'9') {
+                sb.append(peekChar)
+                advance()
+            }
         }
 
         if (peekChar == 'e' || peekChar == 'E') {
-            sb.append(peekChar); advance()
-            if (peekChar == '+' || peekChar == '-') { sb.append(peekChar); advance() }
+            sb.append(peekChar)
+            advance()
+            if (peekChar == '+' || peekChar == '-') {
+                sb.append(peekChar)
+                advance()
+            }
             if (peekChar !in '0'..'9' && !lenient) throw syntaxError("Expected digit in exponent")
-            while (peekChar in '0'..'9') { sb.append(peekChar); advance() }
+            while (peekChar in '0'..'9') {
+                sb.append(peekChar)
+                advance()
+            }
         }
-
         peekedNumber = parseNumber(sb.toString())
     }
 
-    private fun parseNumber(str: String): Number = try {
-        if (str.contains('.') || str.contains('e') || str.contains('E')) {
-            val d = str.toDouble()
-            if (!str.contains('.') && d == d.toLong().toDouble() && d in Long.MIN_VALUE.toDouble()..Long.MAX_VALUE.toDouble()) d.toLong() else d
-        } else {
-            val l = str.toLong()
-            if (l in Int.MIN_VALUE..Int.MAX_VALUE) l.toInt() else l
+    private fun parseNumber(str: String): Number {
+        return try {
+            if (str.contains('.') || str.contains('e') || str.contains('E')) {
+                val d = str.toDouble()
+                if (!str.contains('.') && d == d.toLong().toDouble() && d in Long.MIN_VALUE.toDouble()..Long.MAX_VALUE.toDouble()) {
+                    d.toLong()
+                } else {
+                    d
+                }
+            } else {
+                val l = str.toLong()
+                if (l in Int.MIN_VALUE..Int.MAX_VALUE) l.toInt() else l
+            }
+        } catch (e: NumberFormatException) {
+            if (lenient) try {
+                str.toDouble()
+            } catch (e2: NumberFormatException) {
+                throw syntaxError("Invalid number: $str")
+            } else throw syntaxError("Invalid number: $str")
         }
-    } catch (e: NumberFormatException) {
-        if (lenient) try { str.toDouble() } catch (e2: NumberFormatException) { throw syntaxError("Invalid number: $str") }
-        else throw syntaxError("Invalid number: $str")
     }
 
     private fun readBooleanInternal() {
-        if (input.startsWith("true", position)) { peekedBoolean = true; position += 4; column += 4 }
-        else if (input.startsWith("false", position)) { peekedBoolean = false; position += 5; column += 5 }
-        else throw syntaxError("Expected boolean (true/false)")
+        if (input.startsWith("true", position)) {
+            peekedBoolean = true
+            position += 4
+            column += 4
+        } else if (input.startsWith("false", position)) {
+            peekedBoolean = false
+            position += 5
+            column += 5
+        } else {
+            throw syntaxError("Expected boolean (true/false)")
+        }
     }
 
     private fun readNullInternal() {
-        if (input.startsWith("null", position)) { position += 4; column += 4 }
-        else throw syntaxError("Expected 'null'")
+        if (input.startsWith("null", position)) {
+            position += 4
+            column += 4
+        } else {
+            throw syntaxError("Expected 'null'")
+        }
     }
 
     private fun readUnquotedStringInternal() {
         peekedString.clear()
-        while (hasMore) { val c = peekChar; if (c in ' '..'\u001f' || c in "{}[]:,\"\\/") break; peekedString.append(c); advance() }
+        while (hasMore) {
+            val c = peekChar
+            if (c in ' '..'\u001f' || c in "{}[]:,\"\\/") break
+            peekedString.append(c)
+            advance()
+        }
     }
 
-    private fun incrementPathIndex() { if (pathIndices.isNotEmpty()) pathIndices[pathIndices.lastIndex]++ }
-    private fun syntaxError(message: String): ParseException = ParseException(message, line, column, position, getPath())
+    private fun incrementPathIndex() {
+        if (pathIndices.isNotEmpty()) {
+            pathIndices[pathIndices.lastIndex]++
+        }
+    }
+
+    private fun syntaxError(message: String): ParseException {
+        return ParseException(message, line, column, position, getPath())
+    }
 
     companion object {
-        @JvmStatic fun of(input: String): JsonReader = JsonReader(input)
+        @JvmStatic
+        fun of(input: String): JsonReader {
+            return JsonReader(input)
+        }
     }
 }

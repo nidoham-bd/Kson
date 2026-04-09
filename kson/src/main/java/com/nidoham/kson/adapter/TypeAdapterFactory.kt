@@ -3,12 +3,16 @@ package com.nidoham.kson.adapter
 import kotlin.reflect.KClass
 
 interface TypeAdapterFactory {
-    fun <T> create(type: KClass<T>): TypeAdapter<T>?
+    fun <T : Any> create(type: KClass<T>): TypeAdapter<T>?
 }
 
 class LambdaTypeAdapterFactory(private val factory: (KClass<*>) -> TypeAdapter<*>?) : TypeAdapterFactory {
     @Suppress("UNCHECKED_CAST")
-    override fun <T> create(type: KClass<T>): TypeAdapter<T>? = factory(type) as? TypeAdapter<T>
+    override fun <T : Any> create(type: KClass<T>): TypeAdapter<T>? {
+        return factory(type) as? TypeAdapter<T>
+    }
 }
 
-fun typeAdapterFactory(factory: (KClass<*>) -> TypeAdapter<*>?): TypeAdapterFactory = LambdaTypeAdapterFactory(factory)
+fun typeAdapterFactory(factory: (KClass<*>) -> TypeAdapter<*>?): TypeAdapterFactory {
+    return LambdaTypeAdapterFactory(factory)
+}
